@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 @AllArgsConstructor
-public class EbayAuction {
+public class EbayListing {
     String url;
     double price;
     double shipping;

@@ -1,5 +1,6 @@
 package de.gx.buyresell.io.ebay;
 
+import de.gx.buyresell.db.entity.EbayListingEntity;
 import de.gx.buyresell.db.service.DBService;
 import de.gx.buyresell.io.util.NumberFormatConverter;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +39,7 @@ public class ImportEbayAuctions {
         this.numberFormatConverter = numberFormatConverter;
     }
 
-    public List<EbayAuction> scrapeSoldComputerAuctions() throws IOException {
+    public List<EbayListing> scrapeSoldComputerAuctions() throws IOException {
         return scrapeSoldEbayAuctions(FINISHED_AUCTIONS_COMPUTER_URI);
     }
 
@@ -70,8 +71,8 @@ public class ImportEbayAuctions {
         return 0.00;
     }
 
-    private List<EbayAuction> scrapeSoldEbayAuctions(String url) throws IOException {
-        List<EbayAuction> receivedAuctionUrls = new ArrayList<>();
+    private List<EbayListing> scrapeSoldEbayAuctions(String url) throws IOException {
+        List<EbayListing> receivedAuctionUrls = new ArrayList<>();
 
 //        website = Jsoup.connect(url).userAgent("${jsoup.userAgent}").get();
         Document website = Jsoup.connect(url).userAgent("Mozilla/5.0").get();
@@ -87,7 +88,12 @@ public class ImportEbayAuctions {
             double sellingPrice = parsePrice(entry.getElementsByClass("bold bidsold").text());  //wenn leer, dann binsold was eine range von bis ist.
             double shipping = parsePrice(entry.getElementsByClass("lvshipping").text());
             log.debug("[ImportEbayAuctions] add url: {}", articleUrl);
-            receivedAuctionUrls.add(new EbayAuction(articleUrl, sellingPrice, shipping));
+            receivedAuctionUrls.add(new EbayListing(articleUrl, sellingPrice, shipping));
+        });
+
+        //save in db
+        receivedAuctionUrls.forEach(item -> {
+            dbService.saveEbayListing(new EbayListingEntity("", item.url, item.price, item.shipping));
         });
 
         return receivedAuctionUrls;
