@@ -1,7 +1,7 @@
 package de.gx.buyresell.db.service;
 
-import de.gx.buyresell.db.entity.EbayAuction;
-import de.gx.buyresell.db.repository.EbayAuctionRepository;
+import de.gx.buyresell.db.entity.EbayListingEntity;
+import de.gx.buyresell.db.repository.EbayListingRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -11,20 +11,20 @@ import java.util.List;
 @Service
 public class DBService {
 
-    private EbayAuctionRepository ebayAuctionRepository;
+    private EbayListingRepository ebayListingRepository;
 
     @Autowired
-    public void setEbayAuctionRepository(EbayAuctionRepository ebayAuctionRepository) {
-        this.ebayAuctionRepository = ebayAuctionRepository;
+    public void setEbayListingRepository(EbayListingRepository ebayListingRepository) {
+        this.ebayListingRepository = ebayListingRepository;
     }
 
-    public void saveEbayAuction(EbayAuction ebayAuction) {
-        ebayAuctionRepository.save(ebayAuction);
+    public void saveEbayListing(EbayListingEntity ebayListingEntity) {
+        ebayListingRepository.save(ebayListingEntity);
     }
 
-    public List<EbayAuction> getEbayAuctions() {
-        List<EbayAuction> ebayAuctions = new ArrayList<>();
-        ebayAuctionRepository.findAll().forEach(ebayAuctions::add);
-        return ebayAuctions;
+    public List<EbayListingEntity> getEbayListings() {
+        List<EbayListingEntity> ebayListingEntities = new ArrayList<>();
+        ebayListingRepository.findAll().forEach(ebayListingEntities::add);
+        return ebayListingEntities;
     }
 }
