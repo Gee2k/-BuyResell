@@ -93,7 +93,7 @@ public class ImportEbayAuctions {
 
         //save in db
         receivedAuctionUrls.forEach(item -> {
-            dbService.saveEbayListing(new EbayListingEntity("", item.url, item.price, item.shipping));
+            dbService.saveEbayListing(new EbayListingEntity("", item.getUrl(), item.getPrice(), item.getShipping()));
         });
 
         return receivedAuctionUrls;
