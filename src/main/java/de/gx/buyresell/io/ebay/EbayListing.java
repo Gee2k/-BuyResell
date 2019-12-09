@@ -7,6 +7,7 @@ import lombok.Data;
 @AllArgsConstructor
 public class EbayListing {
     private String url;
+    private String articleNumber;
     private double price;
     private double shipping;
 }

@@ -9,6 +9,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -21,8 +22,12 @@ import java.util.regex.Pattern;
 @Slf4j
 public class ImportEbayAuctions {
 
-    String FINISHED_AUCTIONS_COMPUTER_URI = "https://www.ebay.de/sch/i.html?_nkw&_in_kw=1&_ex_kw&_sacat=58058&LH_Sold=1&_udlo&_udhi&LH_ItemCondition=3&_samilow&_samihi&_sadis=10&_fpos&LH_SALE_CURRENCY=0&_sop=12&_dmd=1&_ipg=50&LH_Complete=1";
+//    String FINISHED_AUCTIONS_COMPUTER_URI = "https://www.ebay.de/sch/i.html?_nkw&_in_kw=1&_ex_kw&_sacat=58058&LH_Sold=1&_udlo&_udhi&LH_ItemCondition=3&_samilow&_samihi&_sadis=10&_fpos&LH_SALE_CURRENCY=0&_sop=12&_dmd=1&_ipg=50&LH_Complete=1";
+    @Value("${io.ebay.url.finished.computer}")
+    String finishedEbayUrl;
 
+    @Value("#{'${io.ebay.url.list}'.split(',')}")
+    List<String> ebayFinishedAuuctionsUrlList;
 
     private DBService dbService;
     private NumberFormatConverter numberFormatConverter;
@@ -40,7 +45,7 @@ public class ImportEbayAuctions {
     }
 
     public List<EbayListing> scrapeSoldComputerAuctions() throws IOException {
-        return scrapeSoldEbayAuctions(FINISHED_AUCTIONS_COMPUTER_URI);
+        return scrapeSoldEbayAuctions(finishedEbayUrl);
     }
 
     private double parsePrice(String price) {
@@ -88,14 +93,21 @@ public class ImportEbayAuctions {
             double sellingPrice = parsePrice(entry.getElementsByClass("bold bidsold").text());  //wenn leer, dann binsold was eine range von bis ist.
             double shipping = parsePrice(entry.getElementsByClass("lvshipping").text());
             log.debug("[ImportEbayAuctions] add url: {}", articleUrl);
-            receivedAuctionUrls.add(new EbayListing(articleUrl, sellingPrice, shipping));
+            String auctionNumber = parseAuctionNumberFromUrl(articleUrl);
+            receivedAuctionUrls.add(new EbayListing(articleUrl, auctionNumber, sellingPrice, shipping));
         });
 
         //save in db
         receivedAuctionUrls.forEach(item -> {
-            dbService.saveEbayListing(new EbayListingEntity("", item.getUrl(), item.getPrice(), item.getShipping()));
+            dbService.saveEbayListing(new EbayListingEntity(item.getArticleNumber(), item.getUrl(), item.getPrice(), item.getShipping()));
         });
 
         return receivedAuctionUrls;
+    }
+
+    private String parseAuctionNumberFromUrl(String articleUrl) {
+        String auctionNumberString = articleUrl.substring(articleUrl.lastIndexOf("/") + 1, articleUrl.lastIndexOf("?")).trim();
+        log.debug("[ImportEbayAuctions] auction id: {}", auctionNumberString);
+        return auctionNumberString;
     }
 }

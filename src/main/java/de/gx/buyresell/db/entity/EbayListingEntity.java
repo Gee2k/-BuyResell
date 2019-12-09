@@ -9,19 +9,19 @@ import java.util.List;
 @Entity
 @Slf4j
 public class EbayListingEntity extends BaseEntity {
-   private String itemId;
+   private String articleId;
    private String url;
    private double price;
    private double shipping;
 
 //   List<String> keywords = new ArrayList<>();
 
-   public EbayListingEntity(String itemId, String url, double price, double shipping) {
-      this.itemId = itemId;
+   public EbayListingEntity(String articleId, String url, double price, double shipping) {
+      this.articleId = articleId;
       this.url = url;
       this.price = price;
       this.shipping = shipping;
-      log.debug("Ebay Listing saved to DB with: \"{}\" \"{}\" \"{}\" \"{}\"", itemId, url, price, shipping);
+      log.debug("Ebay Listing saved to DB with: \"{}\" \"{}\" \"{}\" \"{}\"", articleId, url, price, shipping);
    }
 
 
