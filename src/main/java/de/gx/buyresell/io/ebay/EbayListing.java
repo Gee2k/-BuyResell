@@ -10,4 +10,5 @@ public class EbayListing {
     private String articleNumber;
     private double price;
     private double shipping;
+    private String keywords;
 }

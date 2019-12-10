@@ -94,20 +94,36 @@ public class ImportEbayAuctions {
             double shipping = parsePrice(entry.getElementsByClass("lvshipping").text());
             log.debug("[ImportEbayAuctions] add url: {}", articleUrl);
             String auctionNumber = parseAuctionNumberFromUrl(articleUrl);
-            receivedAuctionUrls.add(new EbayListing(articleUrl, auctionNumber, sellingPrice, shipping));
+
+            String keywords = extractKeywordsFromUrl(articleUrl);
+            receivedAuctionUrls.add(new EbayListing(articleUrl, auctionNumber, sellingPrice, shipping, keywords));
         });
 
         //save in db
         receivedAuctionUrls.forEach(item -> {
-            dbService.saveEbayListing(new EbayListingEntity(item.getArticleNumber(), item.getUrl(), item.getPrice(), item.getShipping()));
+            dbService.saveEbayListing(new EbayListingEntity(item.getArticleNumber(), item.getUrl(), item.getPrice(), item.getShipping(), item.getKeywords()));
         });
 
         return receivedAuctionUrls;
     }
 
+    private String extractKeywordsFromUrl(String articleUrl) {
+        int lastIndex = articleUrl.lastIndexOf("/");
+        int firstIndex = articleUrl.lastIndexOf("/", lastIndex - 1);
+//        log.debug("[ImportEbayAuctions] keywords index from: {} - to: {}", firstIndex , lastIndex);
+        String keywords = articleUrl.substring(firstIndex + 1, lastIndex);
+        keywords = keywords.replaceAll("-", " ");
+        log.debug("[ImportEbayAuctions] keywords: {}", keywords);
+
+        return keywords;
+    }
+
     private String parseAuctionNumberFromUrl(String articleUrl) {
-        String auctionNumberString = articleUrl.substring(articleUrl.lastIndexOf("/") + 1, articleUrl.lastIndexOf("?")).trim();
+        int firstIndex = articleUrl.lastIndexOf("/");
+        int lastIndex = articleUrl.lastIndexOf("?");
+        String auctionNumberString = articleUrl.substring(firstIndex + 1, lastIndex).trim();
         log.debug("[ImportEbayAuctions] auction id: {}", auctionNumberString);
+
         return auctionNumberString;
     }
 }
