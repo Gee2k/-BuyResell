@@ -13,14 +13,16 @@ public class EbayListingEntity extends BaseEntity {
    private String url;
    private double price;
    private double shipping;
+   private String keywords;
 
 //   List<String> keywords = new ArrayList<>();
 
-   public EbayListingEntity(String articleId, String url, double price, double shipping) {
+   public EbayListingEntity(String articleId, String url, double price, double shipping, String keywords) {
       this.articleId = articleId;
       this.url = url;
       this.price = price;
       this.shipping = shipping;
+      this.keywords = keywords;
       log.debug("Ebay Listing saved to DB with: \"{}\" \"{}\" \"{}\" \"{}\"", articleId, url, price, shipping);
    }
 
