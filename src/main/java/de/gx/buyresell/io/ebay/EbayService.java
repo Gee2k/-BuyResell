@@ -20,11 +20,14 @@ import java.util.regex.Pattern;
 
 @Component
 @Slf4j
-public class ImportEbayAuctions {
+public class EbayService {
 
 //    String FINISHED_AUCTIONS_COMPUTER_URI = "https://www.ebay.de/sch/i.html?_nkw&_in_kw=1&_ex_kw&_sacat=58058&LH_Sold=1&_udlo&_udhi&LH_ItemCondition=3&_samilow&_samihi&_sadis=10&_fpos&LH_SALE_CURRENCY=0&_sop=12&_dmd=1&_ipg=50&LH_Complete=1";
     @Value("${io.ebay.url.finished.computer}")
     String finishedEbayUrl;
+
+    @Value("${io.ebay.url.finished.toys}")
+    String finishedToysEbayUrl;
 
     @Value("#{'${io.ebay.url.list}'.split(',')}")
     List<String> ebayFinishedAuuctionsUrlList;
@@ -46,6 +49,10 @@ public class ImportEbayAuctions {
 
     public List<EbayListing> scrapeSoldComputerAuctions() throws IOException {
         return scrapeSoldEbayAuctions(finishedEbayUrl);
+    }
+
+    public List<EbayListing> scrapeSoldToyAuctions() throws IOException {
+        return scrapeSoldEbayAuctions(finishedToysEbayUrl);
     }
 
     private double parsePrice(String price) {
@@ -77,10 +84,9 @@ public class ImportEbayAuctions {
     }
 
     private List<EbayListing> scrapeSoldEbayAuctions(String url) throws IOException {
-        List<EbayListing> receivedAuctionUrls = new ArrayList<>();
+        List<EbayListing> receivedAuctionListings = new ArrayList<>();
 
-//        website = Jsoup.connect(url).userAgent("${jsoup.userAgent}").get();
-        Document website = Jsoup.connect(url).userAgent("Mozilla/5.0").get();
+        Document website = Jsoup.connect(url).userAgent("${jsoup.userAgent}").get();
         log.debug("[ImportEbayAuctions] parsing url: {}", url);
 
         Element element = website.getElementById("ResultSetItems");
@@ -96,15 +102,18 @@ public class ImportEbayAuctions {
             String auctionNumber = parseAuctionNumberFromUrl(articleUrl);
 
             String keywords = extractKeywordsFromUrl(articleUrl);
-            receivedAuctionUrls.add(new EbayListing(articleUrl, auctionNumber, sellingPrice, shipping, keywords));
+            receivedAuctionListings.add(new EbayListing(articleUrl, auctionNumber, sellingPrice, shipping, keywords));
         });
 
         //save in db
-        receivedAuctionUrls.forEach(item -> {
-            dbService.saveEbayListing(new EbayListingEntity(item.getArticleNumber(), item.getUrl(), item.getPrice(), item.getShipping(), item.getKeywords()));
+        long entryAmount = dbService.amountEbayListings();
+        log.debug("[ImportEbayAuctions] Try to save {} items to db", receivedAuctionListings.size());
+        receivedAuctionListings.forEach(item -> {
+         //            dbService.saveEbayListing(new EbayListingEntity(item.getArticleNumber(), item.getUrl(), item.getPrice(), item.getShipping(), item.getKeywords()));
+            dbService.saveIfNotExists(new EbayListingEntity(item.getArticleNumber(), item.getUrl(), item.getPrice(), item.getShipping(), item.getKeywords()));
         });
-
-        return receivedAuctionUrls;
+        log.debug("saved {} (new) retrieved listings", dbService.amountEbayListings() - entryAmount);
+        return receivedAuctionListings;
     }
 
     private String extractKeywordsFromUrl(String articleUrl) {
