@@ -5,7 +5,6 @@ import de.gx.buyresell.db.repository.EbayListingRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -22,9 +21,19 @@ public class DBService {
         ebayListingRepository.save(ebayListingEntity);
     }
 
+    public boolean saveIfNotExists(EbayListingEntity ebayListingEntity) {
+        if(!ebayListingRepository.existsEbayListingEntityByArticleId(ebayListingEntity.getArticleId())) {
+            ebayListingRepository.save(ebayListingEntity);
+            return true;
+        }
+        return false;
+    }
+
     public List<EbayListingEntity> getEbayListings() {
-        List<EbayListingEntity> ebayListingEntities = new ArrayList<>();
-        ebayListingRepository.findAll().forEach(ebayListingEntities::add);
-        return ebayListingEntities;
+        return ebayListingRepository.findAll();
+    }
+
+    public long amountEbayListings() {
+        return ebayListingRepository.count();
     }
 }
