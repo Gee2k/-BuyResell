@@ -2,12 +2,10 @@ package de.gx.buyresell.io.ebay;
 
 import de.gx.buyresell.db.entity.EbayListingEntity;
 import de.gx.buyresell.db.service.DBService;
-import de.gx.buyresell.io.util.NumberFormatConverter;
+import de.gx.buyresell.io.UrlScraper;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+//import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.extern.slf4j.Slf4j;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -15,27 +13,35 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 @Component
 @Slf4j
 public class EbayService {
 
-//    String FINISHED_AUCTIONS_COMPUTER_URI = "https://www.ebay.de/sch/i.html?_nkw&_in_kw=1&_ex_kw&_sacat=58058&LH_Sold=1&_udlo&_udhi&LH_ItemCondition=3&_samilow&_samihi&_sadis=10&_fpos&LH_SALE_CURRENCY=0&_sop=12&_dmd=1&_ipg=50&LH_Complete=1";
-    @Value("${io.ebay.url.finished.computer}")
-    String finishedEbayUrl;
+    private String finishedEbayUrl;
+    private String finishedToysEbayUrl;
+    private List<String> ebayFinishedAuctionsUrlList;
 
-    @Value("${io.ebay.url.finished.toys}")
-    String finishedToysEbayUrl;
-
-    @Value("#{'${io.ebay.url.list}'.split(',')}")
-    List<String> ebayFinishedAuuctionsUrlList;
-
+    private UrlScraper urlScraper;
     private DBService dbService;
-    private NumberFormatConverter numberFormatConverter;
-    private Jsoup jsoup;
+    private CircuitBreaker circuitBreaker;
 
+    @Autowired
+    public void setFinishedEbayUrl(@Value("${io.ebay.url.finished.computer}") String finishedEbayUrl) {
+        this.finishedEbayUrl = finishedEbayUrl;
+    }
+
+    @Autowired
+    public void setFinishedToysEbayUrl(@Value("${io.ebay.url.finished.toys}") String finishedToysEbayUrl) {
+        this.finishedToysEbayUrl = finishedToysEbayUrl;
+    }
+
+    @Autowired
+    public void setEbayFinishedAuctionsUrlList(@Value("#{'${io.ebay.url.list}'.split(',')}") List<String> ebayFinishedAuctionsUrlList) {
+        this.ebayFinishedAuctionsUrlList = ebayFinishedAuctionsUrlList;
+    }
 
     @Autowired
     public void setDbService(DBService dbService) {
@@ -43,8 +49,13 @@ public class EbayService {
     }
 
     @Autowired
-    public void setNumberFormatConverter(NumberFormatConverter numberFormatConverter) {
-        this.numberFormatConverter = numberFormatConverter;
+    public void setUrlScraper(UrlScraper urlScraper) {
+        this.urlScraper = urlScraper;
+    }
+
+    @Autowired
+    public void setCircuitBreaker(CircuitBreaker circuitBreaker) {
+        this.circuitBreaker = circuitBreaker;
     }
 
     public List<EbayListing> scrapeSoldComputerAuctions() throws IOException {
@@ -55,55 +66,17 @@ public class EbayService {
         return scrapeSoldEbayAuctions(finishedToysEbayUrl);
     }
 
-    private double parsePrice(String price) {
-        // <span class="bold bidsold">
-        // <b>EUR</b>
-        // 16,00
-        // </span>
-
-        // oder
-
-        //<span class="fee">+ EUR 5,50 versand</span>
-
-        log.debug("[ImportEbayAuctions] trying to parse and convert \"{}\" into double", price);
-
-        double returnValue = 0.0;
-//        Pattern pattern = Pattern.compile("[0-9]{1,2},{1}[0-9]{2}");
-        Pattern pattern = Pattern.compile("([.]{0,1}[0-9]{0,2}){0,}[0-9]{1},{1}[0-9]{2}");
-        Matcher matcher = pattern.matcher(price);
-
-        try {
-            if (price.contains(",") && matcher.find()) {
-                return numberFormatConverter.parse(matcher.group(0));
-            }
-        }
-        catch (Exception e){
-            log.debug("[ImportEbayAuctions] conversion failed");
-        }
-        return 0.00;
-    }
-
-    private List<EbayListing> scrapeSoldEbayAuctions(String url) throws IOException {
+    private List<EbayListing> scrapeSoldEbayAuctions(String url) {
         List<EbayListing> receivedAuctionListings = new ArrayList<>();
+//        receivedAuctionListings = urlScraper.scrapeElementsFromUrl(url);
 
-        Document website = Jsoup.connect(url).userAgent("${jsoup.userAgent}").get();
-        log.debug("[ImportEbayAuctions] parsing url: {}", url);
+        //1
+//        Function<String, List<EbayListing>> decorated = CircuitBreaker.decorateFunction(circuitBreaker, urlScraper::scrapeElementsFromUrl);
+//        receivedAuctionListings = decorated.apply(url);
 
-        Element element = website.getElementById("ResultSetItems");
-        Elements foundSoldItems = element.getElementsByClass("sresult lvresult clearfix li");
-        log.debug("[ImportEbayAuctions] found [{}] elements", foundSoldItems.size());
-
-        foundSoldItems.forEach(entry -> {
-
-            String articleUrl = entry.getElementsByClass("vip").attr("href");
-            double sellingPrice = parsePrice(entry.getElementsByClass("bold bidsold").text());  //wenn leer, dann binsold was eine range von bis ist.
-            double shipping = parsePrice(entry.getElementsByClass("lvshipping").text());
-            log.debug("[ImportEbayAuctions] add url: {}", articleUrl);
-            String auctionNumber = parseAuctionNumberFromUrl(articleUrl);
-
-            String keywords = extractKeywordsFromUrl(articleUrl);
-            receivedAuctionListings.add(new EbayListing(articleUrl, auctionNumber, sellingPrice, shipping, keywords));
-        });
+        //2
+        Supplier<List<EbayListing>> ebayListingsSupplier = CircuitBreaker.decorateSupplier(circuitBreaker, () -> urlScraper.scrapeElementsFromUrl(url));
+        receivedAuctionListings = ebayListingsSupplier.get();
 
         //save in db
         long entryAmount = dbService.amountEbayListings();
@@ -114,25 +87,5 @@ public class EbayService {
         });
         log.debug("saved {} (new) retrieved listings", dbService.amountEbayListings() - entryAmount);
         return receivedAuctionListings;
-    }
-
-    private String extractKeywordsFromUrl(String articleUrl) {
-        int lastIndex = articleUrl.lastIndexOf("/");
-        int firstIndex = articleUrl.lastIndexOf("/", lastIndex - 1);
-//        log.debug("[ImportEbayAuctions] keywords index from: {} - to: {}", firstIndex , lastIndex);
-        String keywords = articleUrl.substring(firstIndex + 1, lastIndex);
-        keywords = keywords.replaceAll("-", " ");
-        log.debug("[ImportEbayAuctions] keywords: {}", keywords);
-
-        return keywords;
-    }
-
-    private String parseAuctionNumberFromUrl(String articleUrl) {
-        int firstIndex = articleUrl.lastIndexOf("/");
-        int lastIndex = articleUrl.lastIndexOf("?");
-        String auctionNumberString = articleUrl.substring(firstIndex + 1, lastIndex).trim();
-        log.debug("[ImportEbayAuctions] auction id: {}", auctionNumberString);
-
-        return auctionNumberString;
     }
 }
